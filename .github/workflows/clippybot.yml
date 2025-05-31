@@ -1,0 +1,69 @@
+on:
+  schedule:
+    # Run daily job at 8:00 PM PT
+    - cron: '0 3 * * *'
+
+name: clippybot
+
+jobs:
+  env:
+    runs-on: ubuntu-latest
+    outputs:
+      examples: ${{ steps.definitions.outputs.examples }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Evaluate definitions
+        id: definitions
+        run: |
+          export EXAMPLES=$(find examples/ -maxdepth 1 -mindepth 1 -type d | jq -R | jq -sc)
+          echo "examples=$EXAMPLES"
+          echo "examples=$EXAMPLES" >> $GITHUB_OUTPUT
+
+  clippy:
+    needs: env
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - toolchain: stable
+            # fail on stable warnings
+            args: "-D warnings"
+          - example: ${{ fromJson(needs.env.outputs.examples) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install rust toolchain
+        id: toolchain
+        run: |
+          rustup toolchain install ${{ matrix.toolchain }} --profile minimal --component clippy
+          rustup override set ${{ matrix.toolchain }}
+
+      - uses: camshaft/rust-cache@v1
+
+      - name: Run cargo clippy on main crates
+        run: |
+          # deriving Eq may break API compatibility so we disable it
+          # See https://github.com/rust-lang/rust-clippy/issues/9063
+          #
+          # manual_clamp will panic when min > max
+          # See https://github.com/rust-lang/rust-clippy/pull/10101
+          cargo clippy --fix --all-features --all-targets --workspace -- -A clippy::derive_partial_eq_without_eq -A clippy::manual_clamp ${{ matrix.args }}
+
+      - name: Run clippy on dc/wireshark crate
+        working-directory: dc/wireshark
+        run: cargo clippy --fix --allow-dirty --tests
+
+      - name: Run clippy on examples crate
+        working-directory: ${{ matrix.example }}
+        run: cargo clippy --all-features --all-targets --fix --allow-dirty -- -A clippy::manual_clamp -A clippy::uninlined_format_args -D warnings
+
+      - name: Run clippy on tools/xdp crate
+        working-directory: tools/xdp
+        run: cargo clippy --fix --allow-dirty
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+
