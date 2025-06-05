@@ -6,30 +6,10 @@ on:
 name: clippybot
 
 jobs:
-  env:
-    runs-on: ubuntu-latest
-    outputs:
-      examples: ${{ steps.definitions.outputs.examples }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Evaluate definitions
-        id: definitions
-        run: |
-          export EXAMPLES=$(find examples/ -maxdepth 1 -mindepth 1 -type d | jq -R | jq -sc)
-          echo "examples=$EXAMPLES"
-          echo "examples=$EXAMPLES" >> $GITHUB_OUTPUT
-
   clippy:
-    needs: env
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - toolchain: stable
-            # fail on stable warnings
-            args: "-D warnings"
-          - example: ${{ fromJson(needs.env.outputs.examples) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,8 +18,8 @@ jobs:
       - name: Install rust toolchain
         id: toolchain
         run: |
-          rustup toolchain install ${{ matrix.toolchain }} --profile minimal --component clippy
-          rustup override set ${{ matrix.toolchain }}
+          rustup toolchain install stable --profile minimal --component clippy
+          rustup override set stable
 
       - uses: camshaft/rust-cache@v1
 
@@ -50,14 +30,14 @@ jobs:
           #
           # manual_clamp will panic when min > max
           # See https://github.com/rust-lang/rust-clippy/pull/10101
-          cargo clippy --fix --all-features --all-targets --workspace -- -A clippy::derive_partial_eq_without_eq -A clippy::manual_clamp ${{ matrix.args }}
+          cargo clippy --fix --all-features --all-targets --workspace -- -A clippy::derive_partial_eq_without_eq -A clippy::manual_clamp -D warnings
 
       - name: Run clippy on dc/wireshark crate
         working-directory: dc/wireshark
         run: cargo clippy --fix --allow-dirty --tests
 
-      - name: Run clippy on examples crate
-        working-directory: ${{ matrix.example }}
+      - name: Run clippy on all examples crates
+        working-directory: examples
         run: cargo clippy --all-features --all-targets --fix --allow-dirty -- -A clippy::manual_clamp -A clippy::uninlined_format_args -D warnings
 
       - name: Run clippy on tools/xdp crate
