@@ -1,10 +1,10 @@
+name: clippybot
+
 on:
   schedule:
     # Run daily job at 8:00 PM PT
     - cron: '0 3 * * *'
   workflow_dispatch:
-
-name: clippybot
 
 jobs:
   clippy:
