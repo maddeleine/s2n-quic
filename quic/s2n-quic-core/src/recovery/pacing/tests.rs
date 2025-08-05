@@ -328,11 +328,7 @@ fn rfc_interval(
 }
 
 fn abs_difference(a: Duration, b: Duration) -> Duration {
-    if a > b {
-        a - b
-    } else {
-        b - a
-    }
+    a.abs_diff(b)
 }
 
 // Calls `on_packet_sent` until the earliest departure time has increased, and returns the interval
