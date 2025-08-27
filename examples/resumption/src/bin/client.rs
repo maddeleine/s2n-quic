@@ -31,7 +31,7 @@ impl ConnectionInitializer for SessionTicketHandler {
     fn initialize_connection(
         &self,
         connection: &mut connection::Connection,
-    ) -> Result<Option<Pin<Box<(dyn ConnectionFuture)>>>, Error> {
+    ) -> Result<Option<Pin<Box<dyn ConnectionFuture>>>, Error> {
         if let Some(ticket) = (*self.stored_ticket).lock().unwrap().as_deref() {
             connection.set_session_ticket(ticket)?;
         }
