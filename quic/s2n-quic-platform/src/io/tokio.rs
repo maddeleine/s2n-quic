@@ -1,7 +1,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{features::gso, message::default as message, socket, syscall};
+use crate::{bpf::cbpf::*, features::gso, message::default as message, socket, syscall};
 use s2n_quic_core::{
     endpoint::Endpoint,
     event::{self, EndpointPublisher as _},
@@ -28,6 +28,23 @@ pub(crate) use clock::Clock;
 pub struct Io {
     builder: Builder,
 }
+
+const LSB_MASK: u8 = 0b1111_0000;
+const INITIAL_PKT_TAG: u8 = 0b1100_0000;
+
+pub static ROUTER: Program = Program::new(&[
+    // load the first byte of the quic packet
+    ldb(abs(0)),
+    // mask off the last four bits of the byte
+    and(LSB_MASK as _),
+    // if the packet matches the initial packet format, jump 0 lines
+    // else jump 1 line
+    jeq(INITIAL_PKT_TAG as _, 0, 1),
+    // return a 0 indicating socket 0 will process the packet
+    ret(0),
+    // return a 1 indicating socket 1 will process this packet
+    ret(1),
+]);
 
 impl Io {
     pub fn builder() -> Builder {
@@ -60,6 +77,7 @@ impl Io {
             reuse_address,
             reuse_port,
             only_v6,
+            duplicate_sockets,
         } = self.builder;
 
         let clock = Clock::default();
@@ -99,8 +117,23 @@ impl Io {
                 "missing bind address",
             ));
         };
-
         let rx_addr = convert_addr_to_std(rx_socket.local_addr()?)?;
+        let mut rx_socket_list = vec![rx_socket.try_clone()?];
+
+        if duplicate_sockets {
+            ROUTER.attach(&rx_socket)?;
+
+            let rx_socket_shadow = if let Some(recv_addr) = recv_addr {
+                syscall::bind_udp(recv_addr, reuse_address, reuse_port, only_v6)?
+            } else {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "missing bind address",
+                ));
+            };
+            ROUTER.attach(&rx_socket_shadow)?;
+            rx_socket_list.push(rx_socket_shadow);
+        }
 
         let tx_socket = if let Some(tx_socket) = tx_socket {
             tx_socket
@@ -199,28 +232,18 @@ impl Io {
             // complete
             let rx_cooldown = cooldown("RX");
 
-            for idx in 0usize..rx_socket_count {
+            for socket in rx_socket_list {
                 let (producer, consumer) = socket::ring::pair(entries, payload_len);
                 consumers.push(consumer);
 
                 // spawn a task that actually reads from the socket into the ring buffer
-                if idx + 1 == rx_socket_count {
-                    handle.spawn(task::rx(
-                        rx_socket,
-                        producer,
-                        rx_cooldown,
-                        stats_sender.clone(),
-                    ));
-                    break;
-                } else {
-                    let rx_socket = rx_socket.try_clone()?;
-                    handle.spawn(task::rx(
-                        rx_socket,
-                        producer,
-                        rx_cooldown.clone(),
-                        stats_sender.clone(),
-                    ));
-                }
+                let rx_socket = socket.try_clone()?;
+                handle.spawn(task::rx(
+                    rx_socket,
+                    producer,
+                    rx_cooldown.clone(),
+                    stats_sender.clone(),
+                ));
             }
 
             // construct the RX side for the endpoint event loop
