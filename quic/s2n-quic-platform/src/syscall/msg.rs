@@ -172,6 +172,14 @@ pub fn recv<'a, Sock: AsRawFd, P: IntoIterator<Item = &'a mut msghdr>, E: Socket
                 unsafe {
                     msg.set_payload_len(payload_len.min(u16::MAX as _).max(0) as _);
                 }
+
+                // extract the SO_RXQ_OVFL dropped packet count from ancillary data
+                if let Some(dropped_packets) =
+                    unsafe { crate::message::cmsg::dropped_packets_from_msghdr(msg) }
+                {
+                    stats.recv().on_dropped_packets(dropped_packets);
+                }
+
                 events.on_complete(1)
             }
             Err(err) => events.on_error(err),

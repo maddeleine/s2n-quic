@@ -163,7 +163,17 @@ pub fn recv<Sock: AsRawFd, E: SocketEvents>(
     stats.recv().on_operation_result(&res, |count| *count as _);
 
     let _ = match res {
-        Ok(count) => events.on_complete(count as _),
+        Ok(count) => {
+            // extract the SO_RXQ_OVFL dropped packet count from the first received message
+            if count > 0 {
+                if let Some(dropped_packets) = unsafe {
+                    crate::message::cmsg::dropped_packets_from_msghdr(&packets[0].msg_hdr)
+                } {
+                    stats.recv().on_dropped_packets(dropped_packets);
+                }
+            }
+            events.on_complete(count as _)
+        }
         Err(error) => events.on_error(error),
     };
 }

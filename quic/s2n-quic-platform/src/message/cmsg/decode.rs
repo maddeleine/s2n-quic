@@ -95,6 +95,13 @@ unsafe fn collect_item(data: &mut AncillaryData, cmsg: &cmsghdr, value: &[u8]) {
                 decode_error!("invalid gro value");
             }
         }
+        (level, ty) if features::rxq_ovfl::is_match(level, ty) => {
+            if let Some(dropped_packets) = value_from_bytes::<features::rxq_ovfl::Cmsg>(value) {
+                data.dropped_packets = dropped_packets;
+            } else {
+                decode_error!("invalid rxq_ovfl value");
+            }
+        }
         _ => {
             decode_error!("unexpected cmsghdr");
         }

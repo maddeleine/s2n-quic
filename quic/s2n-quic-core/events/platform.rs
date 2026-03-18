@@ -79,6 +79,13 @@ struct PlatformRx {
     #[measure("errors.dropped")]
     #[counter("errors.dropped.total")]
     dropped_errors: usize,
+
+    /// The cumulative number of packets dropped on the socket due to receive buffer overflow
+    ///
+    /// This value is provided by the kernel via `SO_RXQ_OVFL`.
+    #[measure("dropped_packets")]
+    #[counter("dropped_packets.total")]
+    dropped_packets: usize,
 }
 
 #[event("platform:rx_error")]

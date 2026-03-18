@@ -183,6 +183,9 @@ impl Io {
             },
         });
 
+        // Configure SO_RXQ_OVFL to receive dropped packet counts
+        syscall::configure_rxq_ovfl(&rx_socket);
+
         let (stats_sender, stats_recv) = crate::socket::stats::channel();
 
         let rx = {

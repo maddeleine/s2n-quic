@@ -14,6 +14,7 @@ enum Feature {
     GenericReceiveOffload,
     PacketInfo,
     TypeOfService,
+    RxqOvfl,
 }
 
 impl Feature {
@@ -27,6 +28,7 @@ impl Feature {
             GenericReceiveOffload => "gro",
             PacketInfo => "pktinfo",
             TypeOfService => "tos",
+            RxqOvfl => "rxq_ovfl",
         }
     }
 }
@@ -43,7 +45,7 @@ impl From<&str> for Feature {
     }
 }
 
-const ALL_FEATURES: [Feature; 8] = [
+const ALL_FEATURES: [Feature; 9] = [
     ControlMessage,
     SocketMessage,
     SocketMultiMessage,
@@ -52,6 +54,7 @@ const ALL_FEATURES: [Feature; 8] = [
     GenericReceiveOffload,
     PacketInfo,
     TypeOfService,
+    RxqOvfl,
 ];
 
 fn main() -> Result<(), Error> {
@@ -95,6 +98,7 @@ fn main() -> Result<(), Error> {
             features.insert(GenericReceiveOffload);
             features.insert(PacketInfo);
             features.insert(TypeOfService);
+            features.insert(RxqOvfl);
         }
         "macos" => {
             // miri doesn't support the way we detect syscall support so override it
@@ -142,6 +146,7 @@ impl Features {
             GenericReceiveOffload,
             PacketInfo,
             TypeOfService,
+            RxqOvfl,
         ]
         .contains(&feature)
             && !self.supports(ControlMessage)

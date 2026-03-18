@@ -72,6 +72,7 @@ impl Options {
 
         let _ = syscall::configure_tos(&socket);
         let _ = syscall::configure_mtu_disc(&socket);
+        let _ = syscall::configure_rxq_ovfl(&socket);
 
         self.build_common(&socket)?;
 

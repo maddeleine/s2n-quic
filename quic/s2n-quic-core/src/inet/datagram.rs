@@ -36,4 +36,9 @@ pub struct AncillaryData {
     pub local_interface: Option<u32>,
     /// Set when the packet buffer is an aggregate of multiple received packets
     pub segment_size: u16,
+    /// The cumulative number of packets dropped on the socket since the last query
+    ///
+    /// This value is provided by the kernel via `SO_RXQ_OVFL` and represents the total number
+    /// of packets dropped due to receive queue overflow.
+    pub dropped_packets: u32,
 }

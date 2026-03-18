@@ -127,6 +127,7 @@ pub struct Stats {
     errors: Mutex<VecDeque<Error>>,
     total_errors: AtomicU64,
     dropped_errors: AtomicU64,
+    dropped_packets: AtomicU64,
 }
 
 impl Default for Stats {
@@ -138,6 +139,7 @@ impl Default for Stats {
             errors: Mutex::new(VecDeque::with_capacity(ERROR_QUEUE_CAP)),
             total_errors: Default::default(),
             dropped_errors: Default::default(),
+            dropped_packets: Default::default(),
         }
     }
 }
@@ -229,6 +231,15 @@ impl Stats {
         }
     }
 
+    /// Records the cumulative number of packets dropped on the socket
+    ///
+    /// The provided value is the cumulative counter from `SO_RXQ_OVFL`. This method
+    /// stores the latest value; the delta is computed at publish time.
+    #[inline]
+    pub fn on_dropped_packets(&self, dropped_packets: u32) {
+        self.dropped_packets.store(dropped_packets as u64, Ordering::Relaxed);
+    }
+
     #[inline]
     fn publish<P, OnError, OnMetrics>(
         &self,
@@ -266,6 +277,7 @@ impl Stats {
         let blocked_syscalls = take!(blocked);
         let total_errors = take!(total_errors);
         let dropped_errors = take!(dropped_errors);
+        let dropped_packets = take!(dropped_packets);
 
         Metrics {
             packets,
@@ -273,6 +285,7 @@ impl Stats {
             blocked_syscalls,
             total_errors,
             dropped_errors,
+            dropped_packets,
         }
     }
 }
@@ -284,6 +297,7 @@ struct Metrics {
     blocked_syscalls: usize,
     total_errors: usize,
     dropped_errors: usize,
+    dropped_packets: usize,
 }
 
 impl From<Metrics> for event::builder::PlatformRx {
@@ -294,6 +308,7 @@ impl From<Metrics> for event::builder::PlatformRx {
             blocked_syscalls: value.blocked_syscalls,
             total_errors: value.total_errors,
             dropped_errors: value.dropped_errors,
+            dropped_packets: value.dropped_packets,
         }
     }
 }

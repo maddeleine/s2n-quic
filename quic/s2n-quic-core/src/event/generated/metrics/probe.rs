@@ -5,12 +5,10 @@
 // This file was generated with the `s2n-events` crate and any required
 // changes should be made there.
 
-use crate::{
-    event::metrics::aggregate::{
-        self, info, BoolRecorder, Info, NominalRecorder, Recorder as MetricRecorder,
-    },
-    probe::define,
+use crate::event::metrics::aggregate::{
+    self, info, BoolRecorder, Info, NominalRecorder, Recorder as MetricRecorder,
 };
+use crate::probe::define;
 mod id {
     #[allow(non_camel_case_types)]
     #[allow(clippy::upper_case_acronyms)]
@@ -181,6 +179,8 @@ mod id {
         PLATFORM_RX__ERRORS,
         PLATFORM_RX__ERRORS__DROPPED__TOTAL,
         PLATFORM_RX__ERRORS__DROPPED,
+        PLATFORM_RX__DROPPED_PACKETS__TOTAL,
+        PLATFORM_RX__DROPPED_PACKETS,
         PLATFORM_RX_ERROR,
         PLATFORM_FEATURE_CONFIGURED,
         PLATFORM_RX_SOCKET_STATS,
@@ -407,6 +407,9 @@ mod id {
     pub const PLATFORM_RX__ERRORS__DROPPED__TOTAL: usize =
         InfoId::PLATFORM_RX__ERRORS__DROPPED__TOTAL as usize;
     pub const PLATFORM_RX__ERRORS__DROPPED: usize = InfoId::PLATFORM_RX__ERRORS__DROPPED as usize;
+    pub const PLATFORM_RX__DROPPED_PACKETS__TOTAL: usize =
+        InfoId::PLATFORM_RX__DROPPED_PACKETS__TOTAL as usize;
+    pub const PLATFORM_RX__DROPPED_PACKETS: usize = InfoId::PLATFORM_RX__DROPPED_PACKETS as usize;
     pub const PLATFORM_RX_ERROR: usize = InfoId::PLATFORM_RX_ERROR as usize;
     pub const PLATFORM_FEATURE_CONFIGURED: usize = InfoId::PLATFORM_FEATURE_CONFIGURED as usize;
     pub const PLATFORM_RX_SOCKET_STATS: usize = InfoId::PLATFORM_RX_SOCKET_STATS as usize;
@@ -514,6 +517,9 @@ mod counter {
                 id::PLATFORM_RX__ERRORS__TOTAL => Self(platform_rx__errors__total),
                 id::PLATFORM_RX__ERRORS__DROPPED__TOTAL => {
                     Self(platform_rx__errors__dropped__total)
+                }
+                id::PLATFORM_RX__DROPPED_PACKETS__TOTAL => {
+                    Self(platform_rx__dropped_packets__total)
                 }
                 id::PLATFORM_RX_ERROR => Self(platform_rx_error),
                 id::PLATFORM_FEATURE_CONFIGURED => Self(platform_feature_configured),
@@ -689,6 +695,8 @@ mod counter {
             fn platform_rx__errors__total(value: u64);
             # [link_name = s2n_quic__event__counter__platform_rx__errors__dropped__total]
             fn platform_rx__errors__dropped__total(value: u64);
+            # [link_name = s2n_quic__event__counter__platform_rx__dropped_packets__total]
+            fn platform_rx__dropped_packets__total(value: u64);
             # [link_name = s2n_quic__event__counter__platform_rx_error]
             fn platform_rx_error(value: u64);
             # [link_name = s2n_quic__event__counter__platform_feature_configured]
@@ -960,6 +968,7 @@ mod measure {
                 id::PLATFORM_RX__SYSCALLS__BLOCKED => Self(platform_rx__syscalls__blocked),
                 id::PLATFORM_RX__ERRORS => Self(platform_rx__errors),
                 id::PLATFORM_RX__ERRORS__DROPPED => Self(platform_rx__errors__dropped),
+                id::PLATFORM_RX__DROPPED_PACKETS => Self(platform_rx__dropped_packets),
                 _ => unreachable!("invalid info: {info:?}"),
             }
         }
@@ -1051,6 +1060,8 @@ mod measure {
             fn platform_rx__errors(value: u64);
             # [link_name = s2n_quic__event__measure__platform_rx__errors__dropped]
             fn platform_rx__errors__dropped(value: u64);
+            # [link_name = s2n_quic__event__measure__platform_rx__dropped_packets]
+            fn platform_rx__dropped_packets(value: u64);
         }
     );
 }

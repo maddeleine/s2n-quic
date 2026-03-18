@@ -3054,6 +3054,10 @@ pub mod api {
         #[doc = ""]
         #[doc = " This can happen when a burst of errors exceeds the capacity of the recorder"]
         pub dropped_errors: usize,
+        #[doc = " The cumulative number of packets dropped on the socket due to receive buffer overflow"]
+        #[doc = ""]
+        #[doc = " This value is provided by the kernel via `SO_RXQ_OVFL`."]
+        pub dropped_packets: usize,
     }
     #[cfg(any(test, feature = "testing"))]
     impl crate::event::snapshot::Fmt for PlatformRx {
@@ -3064,6 +3068,7 @@ pub mod api {
             fmt.field("blocked_syscalls", &self.blocked_syscalls);
             fmt.field("total_errors", &self.total_errors);
             fmt.field("dropped_errors", &self.dropped_errors);
+            fmt.field("dropped_packets", &self.dropped_packets);
             fmt.finish()
         }
     }
@@ -3315,7 +3320,7 @@ pub mod api {
         }
     }
     macro_rules! impl_conn_id {
-        ($name:ident) => {
+        ($ name : ident) => {
             impl<'a> IntoEvent<builder::ConnectionId<'a>> for &'a crate::connection::id::$name {
                 #[inline]
                 fn into_event(self) -> builder::ConnectionId<'a> {
@@ -4577,8 +4582,9 @@ pub mod tracing {
                 blocked_syscalls,
                 total_errors,
                 dropped_errors,
+                dropped_packets,
             } = event;
-            tracing :: event ! (target : "platform_rx" , parent : parent , tracing :: Level :: DEBUG , { count = tracing :: field :: debug (count) , syscalls = tracing :: field :: debug (syscalls) , blocked_syscalls = tracing :: field :: debug (blocked_syscalls) , total_errors = tracing :: field :: debug (total_errors) , dropped_errors = tracing :: field :: debug (dropped_errors) });
+            tracing :: event ! (target : "platform_rx" , parent : parent , tracing :: Level :: DEBUG , { count = tracing :: field :: debug (count) , syscalls = tracing :: field :: debug (syscalls) , blocked_syscalls = tracing :: field :: debug (blocked_syscalls) , total_errors = tracing :: field :: debug (total_errors) , dropped_errors = tracing :: field :: debug (dropped_errors) , dropped_packets = tracing :: field :: debug (dropped_packets) });
         }
         #[inline]
         fn on_platform_rx_error(&mut self, meta: &api::EndpointMeta, event: &api::PlatformRxError) {
@@ -6993,6 +6999,10 @@ pub mod builder {
         #[doc = ""]
         #[doc = " This can happen when a burst of errors exceeds the capacity of the recorder"]
         pub dropped_errors: usize,
+        #[doc = " The cumulative number of packets dropped on the socket due to receive buffer overflow"]
+        #[doc = ""]
+        #[doc = " This value is provided by the kernel via `SO_RXQ_OVFL`."]
+        pub dropped_packets: usize,
     }
     impl IntoEvent<api::PlatformRx> for PlatformRx {
         #[inline]
@@ -7003,6 +7013,7 @@ pub mod builder {
                 blocked_syscalls,
                 total_errors,
                 dropped_errors,
+                dropped_packets,
             } = self;
             api::PlatformRx {
                 count: count.into_event(),
@@ -7010,6 +7021,7 @@ pub mod builder {
                 blocked_syscalls: blocked_syscalls.into_event(),
                 total_errors: total_errors.into_event(),
                 dropped_errors: dropped_errors.into_event(),
+                dropped_packets: dropped_packets.into_event(),
             }
         }
     }
@@ -7219,7 +7231,8 @@ pub mod supervisor {
 pub use traits::*;
 mod traits {
     use super::*;
-    use crate::{event::Meta, query};
+    use crate::event::Meta;
+    use crate::query;
     use core::fmt;
     #[doc = r" Allows for events to be subscribed to"]
     pub trait Subscriber: 'static + Send {

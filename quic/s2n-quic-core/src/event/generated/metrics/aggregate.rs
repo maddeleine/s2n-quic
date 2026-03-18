@@ -183,6 +183,8 @@ mod id {
         PLATFORM_RX__ERRORS,
         PLATFORM_RX__ERRORS__DROPPED__TOTAL,
         PLATFORM_RX__ERRORS__DROPPED,
+        PLATFORM_RX__DROPPED_PACKETS__TOTAL,
+        PLATFORM_RX__DROPPED_PACKETS,
         PLATFORM_RX_ERROR,
         PLATFORM_FEATURE_CONFIGURED,
         PLATFORM_RX_SOCKET_STATS,
@@ -409,6 +411,9 @@ mod id {
     pub const PLATFORM_RX__ERRORS__DROPPED__TOTAL: usize =
         InfoId::PLATFORM_RX__ERRORS__DROPPED__TOTAL as usize;
     pub const PLATFORM_RX__ERRORS__DROPPED: usize = InfoId::PLATFORM_RX__ERRORS__DROPPED as usize;
+    pub const PLATFORM_RX__DROPPED_PACKETS__TOTAL: usize =
+        InfoId::PLATFORM_RX__DROPPED_PACKETS__TOTAL as usize;
+    pub const PLATFORM_RX__DROPPED_PACKETS: usize = InfoId::PLATFORM_RX__DROPPED_PACKETS as usize;
     pub const PLATFORM_RX_ERROR: usize = InfoId::PLATFORM_RX_ERROR as usize;
     pub const PLATFORM_FEATURE_CONFIGURED: usize = InfoId::PLATFORM_FEATURE_CONFIGURED as usize;
     pub const PLATFORM_RX_SOCKET_STATS: usize = InfoId::PLATFORM_RX_SOCKET_STATS as usize;
@@ -499,6 +504,7 @@ mod id {
         COUNTERS_PLATFORM_RX__SYSCALLS__BLOCKED__TOTAL,
         COUNTERS_PLATFORM_RX__ERRORS__TOTAL,
         COUNTERS_PLATFORM_RX__ERRORS__DROPPED__TOTAL,
+        COUNTERS_PLATFORM_RX__DROPPED_PACKETS__TOTAL,
         COUNTERS_PLATFORM_RX_ERROR,
         COUNTERS_PLATFORM_FEATURE_CONFIGURED,
         COUNTERS_PLATFORM_RX_SOCKET_STATS,
@@ -623,6 +629,8 @@ mod id {
         Counters::COUNTERS_PLATFORM_RX__ERRORS__TOTAL as usize;
     pub const COUNTERS_PLATFORM_RX__ERRORS__DROPPED__TOTAL: usize =
         Counters::COUNTERS_PLATFORM_RX__ERRORS__DROPPED__TOTAL as usize;
+    pub const COUNTERS_PLATFORM_RX__DROPPED_PACKETS__TOTAL: usize =
+        Counters::COUNTERS_PLATFORM_RX__DROPPED_PACKETS__TOTAL as usize;
     pub const COUNTERS_PLATFORM_RX_ERROR: usize = Counters::COUNTERS_PLATFORM_RX_ERROR as usize;
     pub const COUNTERS_PLATFORM_FEATURE_CONFIGURED: usize =
         Counters::COUNTERS_PLATFORM_FEATURE_CONFIGURED as usize;
@@ -789,6 +797,7 @@ mod id {
         MEASURES_PLATFORM_RX__SYSCALLS__BLOCKED,
         MEASURES_PLATFORM_RX__ERRORS,
         MEASURES_PLATFORM_RX__ERRORS__DROPPED,
+        MEASURES_PLATFORM_RX__DROPPED_PACKETS,
     }
     pub const MEASURES_PACKET_SENT__BYTES: usize = Measures::MEASURES_PACKET_SENT__BYTES as usize;
     pub const MEASURES_PACKET_RECEIVED__BYTES: usize =
@@ -865,6 +874,8 @@ mod id {
     pub const MEASURES_PLATFORM_RX__ERRORS: usize = Measures::MEASURES_PLATFORM_RX__ERRORS as usize;
     pub const MEASURES_PLATFORM_RX__ERRORS__DROPPED: usize =
         Measures::MEASURES_PLATFORM_RX__ERRORS__DROPPED as usize;
+    pub const MEASURES_PLATFORM_RX__DROPPED_PACKETS: usize =
+        Measures::MEASURES_PLATFORM_RX__DROPPED_PACKETS as usize;
     #[allow(non_camel_case_types)]
     #[allow(clippy::upper_case_acronyms)]
     enum Timers {
@@ -922,7 +933,7 @@ mod id {
     pub const NOMINAL_TIMERS_SLOW_START_EXITED__LATENCY: usize =
         NominalTimers::NOMINAL_TIMERS_SLOW_START_EXITED__LATENCY as usize;
 }
-static INFO: &[Info; 174usize] = &[
+static INFO: &[Info; 176usize] = &[
     info::Builder {
         id: id::APPLICATION_PROTOCOL_INFORMATION,
         name: Str::new("application_protocol_information\0"),
@@ -1920,6 +1931,18 @@ static INFO: &[Info; 174usize] = &[
     }
     .build(),
     info::Builder {
+        id: id::PLATFORM_RX__DROPPED_PACKETS__TOTAL,
+        name: Str::new("platform_rx.dropped_packets.total\0"),
+        units: Units::None,
+    }
+    .build(),
+    info::Builder {
+        id: id::PLATFORM_RX__DROPPED_PACKETS,
+        name: Str::new("platform_rx.dropped_packets\0"),
+        units: Units::None,
+    }
+    .build(),
+    info::Builder {
         id: id::PLATFORM_RX_ERROR,
         name: Str::new("platform_rx_error\0"),
         units: Units::None,
@@ -1975,7 +1998,7 @@ pub struct ConnectionContext {
 }
 pub struct Subscriber<R: Registry> {
     #[allow(dead_code)]
-    counters: Box<[R::Counter; 84usize]>,
+    counters: Box<[R::Counter; 85usize]>,
     #[allow(dead_code)]
     bool_counters: Box<[R::BoolCounter; 3usize]>,
     #[allow(dead_code)]
@@ -1983,7 +2006,7 @@ pub struct Subscriber<R: Registry> {
     #[allow(dead_code)]
     nominal_counter_offsets: Box<[usize; 31usize]>,
     #[allow(dead_code)]
-    measures: Box<[R::Measure; 40usize]>,
+    measures: Box<[R::Measure; 41usize]>,
     #[allow(dead_code)]
     gauges: Box<[R::Gauge; 0usize]>,
     #[allow(dead_code)]
@@ -2010,11 +2033,11 @@ impl<R: Registry> Subscriber<R> {
     #[allow(unused_mut)]
     #[inline]
     pub fn new(registry: R) -> Self {
-        let mut counters = Vec::with_capacity(84usize);
+        let mut counters = Vec::with_capacity(85usize);
         let mut bool_counters = Vec::with_capacity(3usize);
         let mut nominal_counters = Vec::with_capacity(31usize);
         let mut nominal_counter_offsets = Vec::with_capacity(31usize);
-        let mut measures = Vec::with_capacity(40usize);
+        let mut measures = Vec::with_capacity(41usize);
         let mut gauges = Vec::with_capacity(0usize);
         let mut timers = Vec::with_capacity(15usize);
         let mut nominal_timers = Vec::with_capacity(1usize);
@@ -2098,6 +2121,7 @@ impl<R: Registry> Subscriber<R> {
         counters.push(registry.register_counter(&INFO[id::PLATFORM_RX__SYSCALLS__BLOCKED__TOTAL]));
         counters.push(registry.register_counter(&INFO[id::PLATFORM_RX__ERRORS__TOTAL]));
         counters.push(registry.register_counter(&INFO[id::PLATFORM_RX__ERRORS__DROPPED__TOTAL]));
+        counters.push(registry.register_counter(&INFO[id::PLATFORM_RX__DROPPED_PACKETS__TOTAL]));
         counters.push(registry.register_counter(&INFO[id::PLATFORM_RX_ERROR]));
         counters.push(registry.register_counter(&INFO[id::PLATFORM_FEATURE_CONFIGURED]));
         counters.push(registry.register_counter(&INFO[id::PLATFORM_RX_SOCKET_STATS]));
@@ -2556,6 +2580,7 @@ impl<R: Registry> Subscriber<R> {
         measures.push(registry.register_measure(&INFO[id::PLATFORM_RX__SYSCALLS__BLOCKED]));
         measures.push(registry.register_measure(&INFO[id::PLATFORM_RX__ERRORS]));
         measures.push(registry.register_measure(&INFO[id::PLATFORM_RX__ERRORS__DROPPED]));
+        measures.push(registry.register_measure(&INFO[id::PLATFORM_RX__DROPPED_PACKETS]));
         timers.push(registry.register_timer(&INFO[id::KEY_SPACE_DISCARDED__INITIAL__LATENCY]));
         timers.push(registry.register_timer(&INFO[id::KEY_SPACE_DISCARDED__HANDSHAKE__LATENCY]));
         timers.push(registry.register_timer(&INFO[id::KEY_SPACE_DISCARDED__ONE_RTT__LATENCY]));
@@ -2767,6 +2792,9 @@ impl<R: Registry> Subscriber<R> {
                 }
                 id::COUNTERS_PLATFORM_RX__ERRORS__DROPPED__TOTAL => {
                     (&INFO[id::PLATFORM_RX__ERRORS__DROPPED__TOTAL], entry)
+                }
+                id::COUNTERS_PLATFORM_RX__DROPPED_PACKETS__TOTAL => {
+                    (&INFO[id::PLATFORM_RX__DROPPED_PACKETS__TOTAL], entry)
                 }
                 id::COUNTERS_PLATFORM_RX_ERROR => (&INFO[id::PLATFORM_RX_ERROR], entry),
                 id::COUNTERS_PLATFORM_FEATURE_CONFIGURED => {
@@ -3157,6 +3185,9 @@ impl<R: Registry> Subscriber<R> {
                 id::MEASURES_PLATFORM_RX__ERRORS => (&INFO[id::PLATFORM_RX__ERRORS], entry),
                 id::MEASURES_PLATFORM_RX__ERRORS__DROPPED => {
                     (&INFO[id::PLATFORM_RX__ERRORS__DROPPED], entry)
+                }
+                id::MEASURES_PLATFORM_RX__DROPPED_PACKETS => {
+                    (&INFO[id::PLATFORM_RX__DROPPED_PACKETS], entry)
                 }
                 _ => unsafe { core::hint::unreachable_unchecked() },
             })
@@ -4816,6 +4847,16 @@ impl<R: Registry> event::Subscriber for Subscriber<R> {
             id::PLATFORM_RX__ERRORS__DROPPED,
             id::MEASURES_PLATFORM_RX__ERRORS__DROPPED,
             event.dropped_errors,
+        );
+        self.count(
+            id::PLATFORM_RX__DROPPED_PACKETS__TOTAL,
+            id::COUNTERS_PLATFORM_RX__DROPPED_PACKETS__TOTAL,
+            event.dropped_packets,
+        );
+        self.measure(
+            id::PLATFORM_RX__DROPPED_PACKETS,
+            id::MEASURES_PLATFORM_RX__DROPPED_PACKETS,
+            event.dropped_packets,
         );
         let _ = event;
         let _ = meta;
