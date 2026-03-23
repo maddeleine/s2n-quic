@@ -208,7 +208,7 @@ impl<N: Network> bach::environment::Environment for Env<N> {
 #[derive(Clone)]
 pub struct Handle {
     executor: executor::Handle,
-    buffers: network::Buffers,
+    pub buffers: network::Buffers,
 }
 
 impl Handle {
@@ -216,6 +216,7 @@ impl Handle {
         Builder {
             handle: self.clone(),
             address: None,
+            second_addr: None,
             on_socket: None,
             mtu_config_builder: mtu::Config::builder(),
             queue_recv_buffer_size: None,
@@ -227,6 +228,7 @@ impl Handle {
 pub struct Builder {
     handle: Handle,
     address: Option<SocketAddress>,
+    second_addr: Option<SocketAddress>,
     on_socket: Option<Box<dyn FnOnce(socket::Socket)>>,
     mtu_config_builder: mtu::Builder,
     queue_recv_buffer_size: Option<u32>,
@@ -258,6 +260,15 @@ impl Builder {
 
     pub fn on_socket(mut self, f: impl FnOnce(socket::Socket) + 'static) -> Self {
         self.on_socket = Some(Box::new(f));
+        self
+    }
+
+    /// Configures a second socket address for the endpoint to read from
+    ///
+    /// When set, the endpoint will read from two sockets concurrently, which can be used
+    /// to test prioritized socket scheduling or multi-socket receive paths.
+    pub fn with_second_addr(mut self, addr: SocketAddress) -> Self {
+        self.second_addr = Some(addr);
         self
     }
 
@@ -297,6 +308,7 @@ impl Io {
                 buffers,
             },
             address,
+            second_addr: _,
             on_socket,
             mtu_config_builder,
             queue_recv_buffer_size: _,
@@ -304,7 +316,6 @@ impl Io {
         } = self.builder;
 
         let handle = address.unwrap_or_else(|| buffers.generate_addr());
-
         let socket = buffers.register(handle, mtu_config_builder.build().unwrap().max_mtu());
 
         if let Some(on_socket) = on_socket {
@@ -321,6 +332,7 @@ impl Io {
         let Builder {
             handle: Handle { executor, buffers },
             address,
+            second_addr,
             on_socket,
             mtu_config_builder,
             queue_recv_buffer_size,
@@ -339,7 +351,15 @@ impl Io {
             queue_send_buffer_size,
             stats_sender.clone(),
         );
-        let rx = socket.rx_task(mtu_config.max_mtu(), queue_recv_buffer_size, stats_sender);
+
+        let second_socket = second_addr.map(|addr| buffers.register(addr, mtu_config.max_mtu()));
+
+        let rx = socket.rx_task(
+            second_socket.as_ref(),
+            mtu_config.max_mtu(),
+            queue_recv_buffer_size,
+            stats_sender,
+        );
 
         if let Some(on_socket) = on_socket {
             on_socket(socket);

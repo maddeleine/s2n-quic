@@ -23,10 +23,11 @@ use std::{fmt, io, sync::Arc};
 /// A task to receive on a socket
 pub async fn rx(
     socket: Socket,
+    socket_low: Option<Socket>,
     producer: ring::Producer<Message>,
     stats: stats::Sender,
 ) -> io::Result<()> {
-    let result = task::Receiver::new(producer, socket, None, Default::default(), stats).await;
+    let result = task::Receiver::new(producer, socket, socket_low, Default::default(), stats).await;
     if let Some(err) = result {
         Err(err)
     } else {
@@ -176,6 +177,7 @@ impl Socket {
 
     pub fn rx_task(
         &self,
+        second_socket: Option<&Socket>,
         max_mtu: MaxMtu,
         queue_recv_buffer_size: Option<u32>,
         stats: stats::Sender,
@@ -196,11 +198,15 @@ impl Socket {
 
         let mut consumers = vec![];
 
+        // primary socket rx channel
         let (producer, consumer) = crate::socket::ring::pair(entries, payload_len);
         consumers.push(consumer);
-
-        // spawn a task that actually reads from the socket into the ring buffer
-        super::spawn(super::socket::rx(self.clone(), producer, stats));
+        super::spawn(super::socket::rx(
+            self.clone(),
+            second_socket.cloned(),
+            producer,
+            stats.clone(),
+        ));
 
         // construct the RX side for the endpoint event loop
         let max_mtu = MaxMtu::try_from(payload_len as u16).unwrap();

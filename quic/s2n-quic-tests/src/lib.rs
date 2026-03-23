@@ -167,7 +167,7 @@ pub fn tracing_events(with_blocklist: bool, network_env: Model) -> impl event::S
         }
 
         let env_filter = tracing_subscriber::EnvFilter::builder()
-            .with_default_directive(tracing::Level::DEBUG.into())
+            .with_default_directive(tracing::Level::TRACE.into())
             .with_env_var("S2N_LOG")
             .from_env()
             .unwrap();
