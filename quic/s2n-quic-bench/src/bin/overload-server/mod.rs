@@ -61,6 +61,24 @@ impl Metrics {
         self.latency.record_duration(elapsed);
     }
 }
+pub struct ServerSubscriber {}
+impl s2n_quic::provider::event::Subscriber for ServerSubscriber {
+    type ConnectionContext = ();
+
+    fn create_connection_context(
+        &mut self,
+        _meta: &s2n_quic_core::event::api::ConnectionMeta,
+        _info: &s2n_quic_core::event::api::ConnectionInfo,
+    ) -> Self::ConnectionContext {
+        ()
+    }
+    fn on_event<M: s2n_quic_core::event::Meta, E: s2n_quic_dc::event::Event>(
+        &mut self,
+        _meta: &M,
+        _event: &E,
+    ) {
+    }
+}
 
 #[cfg(not(target_os = "windows"))]
 mod mtls {
@@ -100,9 +118,20 @@ pub fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .init();
     tracing::info!("Running...");
 
+    // let format = tracing_subscriber::fmt::format()
+    //     .with_level(false) // don't include levels in formatted output
+    //     .with_timer(tracing_subscriber::fmt::time::uptime())
+    //     .with_ansi(false)
+    //     .compact(); // Use a less verbose output format.
+
+    // tracing_subscriber::fmt()
+    //     .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    //     .event_format(format)
+    //     .init();
+
     let Args { concurrency } = Args::parse();
     println!("Starting benchmark with {concurrency} clients");
-
+    //let sub = s2n_quic::provider::event::tracing::Subscriber::default();
     let sub = s2n_quic::provider::event::disabled::Subscriber;
 
     let server = server::Provider::builder()
@@ -145,6 +174,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // spin up gets a set of 5 redirect sockets which we read/write from to get to the actual
     // server.
     for _ in 0..num_groups {
+        //let sub = s2n_quic::provider::event::tracing::Subscriber::default();
         let sub = s2n_quic::provider::event::disabled::Subscriber;
 
         let client = client::Provider::builder()
@@ -244,8 +274,13 @@ pub fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _ = registry.take_current_metrics_line();
 
     loop {
+        let mut counter = 0;
         std::thread::sleep(Duration::from_secs(1));
         let line = registry.take_current_metrics_line();
+        counter += 1;
         println!("{line}");
+        if counter == 11 {
+            return Ok(());
+        }
     }
 }
