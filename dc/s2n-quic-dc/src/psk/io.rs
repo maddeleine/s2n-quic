@@ -506,7 +506,7 @@ impl HandshakeQueue {
                 if let Err(e) = handshake.await {
                     // We may want to remove this in favor of only relying on the service log
                     // eventually, but keeping it for parity for now.
-                    tracing::error!("handshake with {peer} failed: {e}");
+                    //tracing::error!("handshake with {peer} failed: {e}");
 
                     // Delay deleting the entry by a random time, up to 2 minutes.
                     //

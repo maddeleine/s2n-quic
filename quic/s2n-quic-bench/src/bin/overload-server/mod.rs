@@ -272,15 +272,15 @@ pub fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Skip the first metrics line (warmup)
     std::thread::sleep(Duration::from_secs(1));
     let _ = registry.take_current_metrics_line();
+    //let mut counter: i32 = 0;
 
     loop {
-        let mut counter = 0;
         std::thread::sleep(Duration::from_secs(1));
         let line = registry.take_current_metrics_line();
-        counter += 1;
+        // counter += 1;
         println!("{line}");
-        if counter == 11 {
-            return Ok(());
-        }
+        //if counter == 11 {
+        //return Ok(());
+        //}
     }
 }

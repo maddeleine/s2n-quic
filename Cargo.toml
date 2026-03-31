@@ -18,6 +18,7 @@ exclude = [
 [profile.release-debug]
 inherits = "dev"
 opt-level = 3
+debug-assertions = false
 
 [profile.bench]
 lto = true
