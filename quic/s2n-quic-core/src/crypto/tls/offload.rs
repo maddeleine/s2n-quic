@@ -380,6 +380,8 @@ impl<S: CryptoSuite, H: ExporterHandler> tls::Context<S> for RemoteContext<'_, R
         client_params: tls::ApplicationParameters,
         server_params: &mut alloc::vec::Vec<u8>,
     ) -> Result<(), crate::transport::Error> {
+        let dc_quic_params: [u8; 6] = [128, 220, 0, 0, 1, 0];
+        server_params.append(&mut dc_quic_params.to_vec());
         match self.send_to_quic.push(Request::ClientParams(
             client_params.transport_parameters.to_vec(),
             server_params.to_vec(),

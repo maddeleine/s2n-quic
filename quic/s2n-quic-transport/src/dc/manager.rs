@@ -1,6 +1,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+use std::any::Any;
+
 use crate::{
     contexts::WriteContext,
     endpoint,
@@ -9,15 +11,17 @@ use crate::{
 use s2n_quic_core::{
     ack,
     crypto::tls,
-    dc,
-    dc::{Endpoint, Path},
-    ensure, event,
-    event::builder::{DcState, DcStateChanged},
+    dc::{self, Endpoint, Path},
+    ensure,
+    event::{
+        self,
+        builder::{DcState, DcStateChanged},
+    },
     frame::DcStatelessResetTokens,
     packet::number::PacketNumber,
     state::{event, is},
-    stateless_reset, transmission,
-    transmission::interest::Query,
+    stateless_reset::{self, Token},
+    transmission::{self, interest::Query},
     transport,
 };
 
@@ -90,6 +94,14 @@ impl<Config: endpoint::Config> Manager<Config> {
             state,
             stateless_reset_token_sync: Flag::default(),
         }
+    }
+
+    pub fn provide_token(&mut self, token: Token, secret: Box<dyn Any + Send + 'static>) {
+        self.path.on_secret(secret);
+        self.state.on_path_secrets_ready().unwrap();
+        self.stateless_reset_token_sync = Flag::new(DcStatelessResetTokenWriter {
+            tokens: vec![token],
+        })
     }
 
     /// Returns a disabled `dc::Manager`

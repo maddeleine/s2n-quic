@@ -290,6 +290,26 @@ impl<Config: endpoint::Config> PacketSpaceManager<Config> {
 
             match session_info.session.poll(&mut context)? {
                 Poll::Ready(_success) => {
+                    if let Some(pair) = self.tls_context.take() {
+                        match pair.downcast::<([u8; 16], Box<dyn Any + Send + 'static>)>() {
+                            Ok(b) => {
+                                let (a, inner_box) = *b;
+                                //println!("a {:?} inner_box {:?}", a, inner_box);
+                                self.application
+                                    .as_mut()
+                                    .unwrap()
+                                    .dc_manager
+                                    .provide_token(a.into(), inner_box);
+                                publisher.on_dc_state_changed(
+                                    crate::space::event::builder::DcStateChanged {
+                                        state:
+                                            crate::space::event::builder::DcState::PathSecretsReady,
+                                    },
+                                );
+                            }
+                            Err(e) => println!("downcast failed {:?}", e),
+                        }
+                    }
                     if session_info.session.should_discard_session() {
                         self.discard_session();
                     }

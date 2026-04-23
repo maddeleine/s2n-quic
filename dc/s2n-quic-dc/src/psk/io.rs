@@ -80,6 +80,7 @@ impl Server {
             // After the connection is established we increase the data window to the configured value
             .with_bidirectional_local_data_window(builder.data_window)?
             .with_bidirectional_remote_data_window(initial_max_data)?
+            .with_stored_packet_size(9000)?
             .with_initial_round_trip_time(DEFAULT_INITIAL_RTT)?;
 
         let event = ((ConfirmComplete, MtuConfirmComplete), subscriber);

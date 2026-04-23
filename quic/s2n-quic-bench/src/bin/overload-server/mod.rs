@@ -61,24 +61,6 @@ impl Metrics {
         self.latency.record_duration(elapsed);
     }
 }
-pub struct ServerSubscriber {}
-impl s2n_quic::provider::event::Subscriber for ServerSubscriber {
-    type ConnectionContext = ();
-
-    fn create_connection_context(
-        &mut self,
-        _meta: &s2n_quic_core::event::api::ConnectionMeta,
-        _info: &s2n_quic_core::event::api::ConnectionInfo,
-    ) -> Self::ConnectionContext {
-        ()
-    }
-    fn on_event<M: s2n_quic_core::event::Meta, E: s2n_quic_dc::event::Event>(
-        &mut self,
-        _meta: &M,
-        _event: &E,
-    ) {
-    }
-}
 
 #[cfg(not(target_os = "windows"))]
 mod mtls {
@@ -133,14 +115,86 @@ pub fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Starting benchmark with {concurrency} clients");
     //let sub = s2n_quic::provider::event::tracing::Subscriber::default();
     let sub = s2n_quic::provider::event::disabled::Subscriber;
+    struct TokioExecutor;
+    impl s2n_quic::provider::tls::offload::Executor for TokioExecutor {
+        fn spawn(&self, task: impl core::future::Future<Output = ()> + Send + 'static) {
+            tokio::spawn(task);
+        }
+    }
+    #[derive(Clone)]
+    struct DCExporter {
+        map: secret::Map,
+    }
+    impl s2n_quic::provider::tls::offload::ExporterHandler for DCExporter {
+        fn on_tls_handshake_failed(
+            &self,
+            session: &impl s2n_quic_core::crypto::tls::TlsSession,
+            e: &(dyn core::error::Error + Send + Sync + 'static),
+        ) -> Option<Box<dyn std::any::Any + Send>> {
+            todo!()
+        }
+
+        fn on_tls_exporter_ready(
+            &self,
+            session: &impl s2n_quic_core::crypto::tls::TlsSession,
+        ) -> Option<Box<dyn std::any::Any + Send>> {
+            const TLS_EXPORTER_LABEL: &str = "EXPERIMENTAL EXPORTER s2n-quic-dc";
+            const TLS_EXPORTER_CONTEXT: &str = "";
+            const TLS_EXPORTER_LENGTH: usize =
+                s2n_quic_dc::path::secret::schedule::EXPORT_SECRET_LEN;
+            let mut material = [0; TLS_EXPORTER_LENGTH];
+            session
+                .tls_exporter(
+                    TLS_EXPORTER_LABEL.as_bytes(),
+                    TLS_EXPORTER_CONTEXT.as_bytes(),
+                    &mut material,
+                )
+                .unwrap();
+
+            let cipher_suite = match session.cipher_suite() {
+                s2n_quic_core::crypto::tls::CipherSuite::TLS_AES_128_GCM_SHA256 => {
+                    s2n_quic_dc::path::secret::schedule::Ciphersuite::AES_GCM_128_SHA256
+                }
+                s2n_quic_core::crypto::tls::CipherSuite::TLS_AES_256_GCM_SHA384 => {
+                    s2n_quic_dc::path::secret::schedule::Ciphersuite::AES_GCM_256_SHA384
+                }
+                _ => {
+                    return None;
+                }
+            };
+
+            let secret = s2n_quic_dc::path::secret::schedule::Secret::new(
+                cipher_suite,
+                0,
+                s2n_quic_core::endpoint::Type::Client,
+                &material,
+            );
+
+            let stateless_reset = self.map.store.signer().sign(secret.id());
+            let pair: Box<([u8; 16], Box<dyn std::any::Any + Send + 'static>)> =
+                Box::new((stateless_reset, Box::new(secret)));
+            Some(pair)
+        }
+    }
+    let map = new_map(500);
+
+    let tls = s2n_quic::provider::tls::default::Server::builder()
+        .with_certificate(
+            certificates::MTLS_SERVER_CERT,
+            certificates::MTLS_SERVER_KEY,
+        )?
+        .with_client_authentication()?
+        .with_trusted_certificate(certificates::MTLS_CA_CERT)?
+        .build()?;
+
+    let tls_endpoint = s2n_quic::provider::tls::offload::OffloadBuilder::new()
+        .with_endpoint(tls)
+        .with_exporter(DCExporter { map: map.clone() })
+        .with_executor(TokioExecutor)
+        .build();
 
     let server = server::Provider::builder()
-        .start_blocking(
-            "127.0.0.1:0".parse().unwrap(),
-            mtls::build_server_mtls_provider(certificates::MTLS_CA_CERT)?,
-            sub,
-            new_map(500),
-        )
+        .start_blocking("127.0.0.1:0".parse().unwrap(), tls_endpoint, sub, map)
         .unwrap();
 
     let registry = Registry::new();

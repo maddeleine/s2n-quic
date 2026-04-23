@@ -122,6 +122,9 @@ impl dc::Path for HandshakingPath {
     fn on_mtu_updated(&mut self, mtu: u16) {
         self.inner.lock().on_mtu_updated(mtu);
     }
+    fn on_secret(&mut self, secret: Box<dyn std::any::Any + Send + 'static>) {
+        self.inner.lock().on_secret(secret);
+    }
 }
 
 impl HandshakingPathInner {
@@ -214,6 +217,11 @@ impl HandshakingPathInner {
     fn on_mtu_updated(&mut self, mtu: u16) {
         if let Some(entry) = self.entry.as_ref() {
             entry.update_max_datagram_size(mtu);
+        }
+    }
+    fn on_secret(&mut self, secret: Box<dyn std::any::Any + Send + 'static>) {
+        if let Ok(secret) = secret.downcast::<crate::path::secret::schedule::Secret>() {
+            self.secret = Some(*secret);
         }
     }
 }

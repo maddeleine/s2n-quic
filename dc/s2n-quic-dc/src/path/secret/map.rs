@@ -59,7 +59,7 @@ pub(crate) use status::Dedup;
 /// maximum rate (corresponding to no false positives in replay prevention for 15 seconds).
 #[derive(Clone)]
 pub struct Map {
-    store: Arc<dyn Store>,
+    pub store: Arc<dyn Store>,
 }
 
 impl fmt::Debug for Map {
